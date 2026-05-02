@@ -1,12 +1,7 @@
 # Create Hosted Zone
 data "aws_route53_zone" "primary" {
-  name = var.domain_name
+  name = "${var.domain_name}."
   private_zone = false
-
-  tags = {
-    Name        = "${var.env_prefix}-hosted-zone"
-    ManagedBy   = "Terraform"
-  }
 }
 
 # Route 53 Hosted Zone
