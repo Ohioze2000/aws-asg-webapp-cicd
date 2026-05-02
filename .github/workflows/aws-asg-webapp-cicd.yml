@@ -45,7 +45,7 @@ jobs:
 
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: terraform destroy 
+        run: terraform destroy -auto-approve
 
         # --- 4. CAPTURE OUTPUTS ---
       - name: Capture Website URL
