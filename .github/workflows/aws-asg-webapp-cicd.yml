@@ -42,11 +42,11 @@ jobs:
         run: terraform init
 
       - name: Terraform Plan
-        run: terraform plan 
+        run: terraform plan -out=main.tfplan
 
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: terraform apply -auto-approve
+        run: terraform apply "main.tfplan" -auto-approve
 
         # --- 4. CAPTURE OUTPUTS ---
       - name: Capture Website URL

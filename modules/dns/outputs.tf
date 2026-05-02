@@ -10,16 +10,16 @@ output "route53_record_name" {
 }
 
 output "name_servers" {
-  value       = aws_route53_zone.primary.name_servers
+  value       = data.aws_route53_zone.primary.name_servers
   description = "Use these NS records in your domain registrar's dashboard"
 }
 
 output "zone_id" {
   description = "The ID of the Route 53 Hosted Zone created by this module."
-  value       = aws_route53_zone.primary.zone_id
+  value       = data.aws_route53_zone.primary.zone_id
 }
 
 output "zone_name" {
   description = "The name of the Route 53 Hosted Zone created by this module."
-  value       = aws_route53_zone.primary.name
+  value       = data.aws_route53_zone.primary.name
 }
