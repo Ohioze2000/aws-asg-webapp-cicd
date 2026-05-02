@@ -1,12 +1,12 @@
-terraform { 
-  cloud { 
+terraform {
+  cloud {
     
-    organization = "DigitalTech" 
+    organization = "DigitalTech"
 
-    workspaces { 
-      name = "gitaction_aws_asg" 
-    } 
-  } 
+    workspaces {
+      name = "aws-asg-webapp-prod"
+    }
+  }
 }
 
 #

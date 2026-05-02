@@ -1,0 +1,76 @@
+name: "Terraform AWS Deploy"
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  terraform:
+    name: "Terraform"
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: "us-east-1"
+      TF_CLOUD_ORGANIZATION: "DigitalTech"
+      TF_WORKSPACE: "gitaction_aws_asg"
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+
+         # --- SUCCESS NOTIFICATION ---
+      - name: Slack Notification - Success
+        if: success()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_COLOR: 'good'
+          SLACK_MESSAGE: "✅ Infrastructure Provisioning and Application Deployment Started SUCCESSFULLY!"
+          SLACK_TITLE: "Infrastructure Provisioning and Application Deployment Status: STARTED"
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        run: terraform plan 
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: terraform apply -auto-approve
+
+        # --- 4. CAPTURE OUTPUTS ---
+      - name: Capture Website URL
+        if: success()
+        id: vars
+        run: |
+          echo "URL=$(terraform output -raw website_url)" >> $GITHUB_OUTPUT
+
+         # --- SUCCESS NOTIFICATION ---
+      - name: Slack Notification - Success
+        if: success()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_COLOR: 'good'
+
+          SLACK_TITLE: "✅ Deployment SUCCESSFUL"
+          SLACK_MESSAGE: "Your changes are live at: ${{ steps.vars.outputs.URL }}"
+
+      # --- FAILURE NOTIFICATION ---
+      - name: Slack Notification - Failure
+        if: failure()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_COLOR: 'danger'
+          SLACK_MESSAGE: "❌ Infrastructure Provisioning and Application Deployment FAILED. Check GitHub Actions logs."
+          SLACK_TITLE: "Infrastructure Provisioning and Application Deployment Status: FAILED"
