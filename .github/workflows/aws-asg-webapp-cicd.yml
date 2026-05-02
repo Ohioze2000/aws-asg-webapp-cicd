@@ -40,12 +40,12 @@ jobs:
       - name: Terraform Init
         run: terraform init
 
-      - name: Terraform Plan
-        run: terraform plan -out=main.tfplan
+      # - name: Terraform Plan
+      #   run: terraform plan -out=main.tfplan
 
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: terraform apply "main.tfplan"
+        run: terraform destroy 
 
         # --- 4. CAPTURE OUTPUTS ---
       - name: Capture Website URL
