@@ -128,32 +128,36 @@ Before deploying, ensure you have:
    git clone https://github.com/Ohioze2000/aws-asg-webapp-cicd.git
 
 2. Update Variables:
-Modify terraform.tfvars or your HCP Terraform workspace variables to match your domain and environment settings.
+
+   Modify terraform.tfvars or your HCP Terraform workspace variables to match your domain and environment settings.
 
 3. Push to Main:
 
-i.  git add .
+   i.  git add .
 
-ii. git commit -m "push code to repo"
+   ii. git commit -m "push code to repo"
 
-iv. git remote add origin https://github.com/your-username/your-repo-name.git
+   iv. git remote add origin https://github.com/your-username/your-repo-name.git
 
-v.  git branch -M main (if you are not in main)
+   v.  git branch -M main (if you are not in main)
 
-vi. git push -u origin main
+   vi. git push -u origin main
 
 4. Monitor Slack:
-The pipeline will notify your Slack channel once the application is live and provide the URL.
+
+   The pipeline will notify your Slack channel once the application is live and provide the URL.
 
 🧹 Cleanup
-To tear down the infrastructure and avoid costs:
 
-Go to GitHub Actions -> Infrastructure Cleanup.
+    To tear down the infrastructure and avoid costs:
 
-Run the workflow manually by cliicking Run workflow.
+    Go to GitHub Actions -> Infrastructure Cleanup.
+
+    Run the workflow manually by cliicking Run workflow.
 
 🧠 Lessons Learned
-The Project provided deep insights into the nuances of cloud automation and the realities of managing infrastructure-as-code in a CI/CD environment.
+
+   The Project provided deep insights into the nuances of cloud automation and the realities of managing infrastructure-as-code in a CI/CD environment.
 
 1. Solving the "502 Bad Gateway" Mystery
 Perhaps the most significant technical hurdle was resolving a 502 error when accessing the site via a custom domain.
