@@ -32,7 +32,6 @@ variable "image_name" {
   description = "The AMI ID or name to use for the EC2 instances." # <-- Added a helpful description
 }
 
-
 variable "desired_capacity" {
   description = "Number of instances to run at all times"
   type        = number
