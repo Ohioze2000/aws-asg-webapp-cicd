@@ -103,7 +103,7 @@ module "my-monitoring" {
 # Route53 DNS Validation Records (Fixed Key to avoid duplicates)
 resource "aws_route53_record" "cert_validation_root" {
   for_each = {
-    for dvo in module.my-ssl.domain_validation_options : dvo.resource_record_name => {
+    for dvo in module.my-ssl.domain_validation_options : dvo.domain_name => {
       name    = dvo.resource_record_name
       record  = dvo.resource_record_value
       type    = dvo.resource_record_type
