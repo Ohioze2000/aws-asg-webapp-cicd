@@ -1,4 +1,4 @@
-# 1. Security Group remains the same
+# 1. Security Group
 resource "aws_security_group" "ec2-sg" {
   name        = "${var.env_prefix}-ec2-sg"
   vpc_id      = var.vpc_id
@@ -21,8 +21,7 @@ resource "aws_security_group" "ec2-sg" {
   tags = { Name = "${var.env_prefix}-ec2-sg" }
 }
 
-# Add this to modules/webserver/main.tf 
-
+# AMI Data Source
 data "aws_ami" "ubuntu" {
   most_recent = true
   owners      = ["099720109477"] # Canonical
@@ -43,7 +42,7 @@ resource "aws_key_pair" "ssh-key" {
   public_key = var.public_key_content
 }
 
-# 2. Launch Template: The blueprint for your instances
+# 2. Launch Template
 resource "aws_launch_template" "web_server_lt" {
   name_prefix   = "${var.env_prefix}-web-server-"
   image_id      = data.aws_ami.ubuntu.id
@@ -59,7 +58,6 @@ resource "aws_launch_template" "web_server_lt" {
     name = var.iam_instance_profile_name
   }
 
-  # Base64 encode the user data for Launch Templates
   user_data = filebase64("${path.root}/entry-script.sh")
 
   tag_specifications {
@@ -75,15 +73,14 @@ resource "aws_launch_template" "web_server_lt" {
   }
 }
 
-# 3. Auto Scaling Group: The manager of the fleet
+# 3. Auto Scaling Group
 resource "aws_autoscaling_group" "web_asg" {
-  name                = "${var.env_prefix}-web-asg"
-  vpc_zone_identifier = var.private_subnet_ids # Spreads instances across these subnets
+  name_prefix         = "${var.env_prefix}-web-asg-"
+  vpc_zone_identifier = var.private_subnet_ids
   desired_capacity    = var.desired_capacity
   max_size            = var.max_size
   min_size            = var.min_size
 
-  # This is the "handshake" with the Load Balancer
   target_group_arns = [var.target_group_arn]
 
   launch_template {
@@ -91,13 +88,25 @@ resource "aws_autoscaling_group" "web_asg" {
     version = "$Latest"
   }
 
-  # Health checks should be ELB-based when behind a Load Balancer
   health_check_type         = "ELB"
   health_check_grace_period = 300
+
+  # Automatic rolling update on Launch Template changes
+  instance_refresh {
+    strategy = "Rolling"
+    preferences {
+      min_healthy_percentage = 50
+    }
+    triggers = ["launch_template"]
+  }
 
   tag {
     key                 = "Name"
     value               = "${var.env_prefix}-asg-node"
     propagate_at_launch = true
+  }
+
+  lifecycle {
+    create_before_destroy = true
   }
 }

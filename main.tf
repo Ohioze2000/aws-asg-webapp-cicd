@@ -1,5 +1,6 @@
 
 terraform {
+  required_version = ">= 1.0"
     required_providers {
         aws = {
             source = "hashicorp/aws"
@@ -28,7 +29,7 @@ resource "aws_acm_certificate_validation" "cert_validation" {
    validation_record_fqdns = [for rec in aws_route53_record.cert_validation_root : rec.fqdn]
 
    # Explicitly depend on the DNS records being created before attempting validation
-   depends_on = [module.my-dns]
+   # depends_on = [module.my-dns]
  }
 
 module "my-network" {
@@ -73,7 +74,11 @@ module "my-alb" {
   subnet_ids = module.my-network.public_subnet_ids
   # REMOVED: instance_ids = module.my-server.instance_ids 
   # (The ASG handles this now via the target_group_arn)
-  certificate_arn = aws_acm_certificate_validation.cert_validation.certificate_arn 
+  # certificate_arn = aws_acm_certificate_validation.cert_validation.certificate_arn 
+
+  certificate_arn = module.my-ssl.certificate_arn
+
+  depends_on = [aws_acm_certificate_validation.cert_validation]
 }
 
 module "my-dns" {
@@ -95,26 +100,48 @@ module "my-monitoring" {
   asg_name     = module.my-server.asg_name
 }
 
-locals {
-  root_cert_validation_records = {
-    # Ensure module.my-ssl.domain_validation_options is correctly outputting
-    # the list of validation objects (domain_name, resource_record_name, type, value).
-    for dvo in module.my-ssl.domain_validation_options : dvo.domain_name => {
+# Route53 DNS Validation Records (Fixed Key to avoid duplicates)
+resource "aws_route53_record" "cert_validation_root" {
+  for_each = {
+    for dvo in module.my-ssl.domain_validation_options : dvo.resource_record_name => {
       name    = dvo.resource_record_name
-      type    = dvo.resource_record_type
       record  = dvo.resource_record_value
-      zone_id = module.my-dns.zone_id # Get zone_id from the DNS module output
+      type    = dvo.resource_record_type
+      zone_id = module.my-dns.zone_id
     }
   }
+
+  allow_overwrite = true
+  name            = each.value.name
+  records         = [each.value.record]
+  ttl             = 60
+  type            = each.value.type
+  zone_id         = each.value.zone_id
 }
 
-resource "aws_route53_record" "cert_validation_root" {
-  for_each = local.root_cert_validation_records
 
-  zone_id = each.value.zone_id
-  name    = each.value.name
-  type    = each.value.type
-  ttl     = 60
-  records = [each.value.record]
-}
+
+
+# locals {
+#   root_cert_validation_records = {
+#     # Ensure module.my-ssl.domain_validation_options is correctly outputting
+#     # the list of validation objects (domain_name, resource_record_name, type, value).
+#     for dvo in module.my-ssl.domain_validation_options : dvo.domain_name => {
+#       name    = dvo.resource_record_name
+#       type    = dvo.resource_record_type
+#       record  = dvo.resource_record_value
+#       zone_id = module.my-dns.zone_id # Get zone_id from the DNS module output
+#     }
+#   }
+# }
+
+# resource "aws_route53_record" "cert_validation_root" {
+#   for_each = local.root_cert_validation_records
+
+#   zone_id = each.value.zone_id
+#   name    = each.value.name
+#   type    = each.value.type
+#   ttl     = 60
+#   records = [each.value.record]
+# }
 
