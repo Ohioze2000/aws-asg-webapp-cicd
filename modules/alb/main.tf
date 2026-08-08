@@ -45,16 +45,18 @@ resource "aws_lb_target_group" "app-tg" {
   port     = 80
   protocol = "HTTP"
   vpc_id   = var.vpc_id
+  target_type = "instance"
 
   health_check {
+    enabled             = true
     path                = "/"
     protocol            = "HTTP"
     port                = "traffic-port"
-    matcher             = "200"
+    matcher             = "200-399"
     interval            = 30
     timeout             = 5
     healthy_threshold   = 2
-    unhealthy_threshold = 2
+    unhealthy_threshold = 5
   }
 
   tags = { Name = "${var.env_prefix}-App-TG" }

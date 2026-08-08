@@ -10,6 +10,7 @@ sudo apt-get install -y \
     curl \
     gnupg \
     lsb-release \
+    git \
     unzip \
     wget
 
@@ -29,30 +30,44 @@ sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plug
 # 5. Allow default ubuntu user to run Docker
 sudo usermod -aG docker ubuntu || true
 
-# 6. Download web content from raw GitHub repository zip
+# 6. Fetch application source code via Git Clone
+rm -rf /tmp/app
 mkdir -p /tmp/app && cd /tmp/app
-wget -O estate-agency.zip https://raw.githubusercontent.com/Ohioze2000/estate-agency/main/estate-agency.zip
+git clone https://github.com/Ohioze2000/estate-agency.git .
 
-# 7. Extract archive
-unzip -o estate-agency.zip
+# 7. Navigate into cloned repository directory
+cd estate-agency
 
-# 8. Navigate into extracted directory (handles 'estate-agency-main' nested folder automatically)
-cd estate-agency-* || cd estate-agency
+# 8. Unzip the estate-agency.zip file located inside the repository
+if [ -f "estate-agency.zip" ]; then
+    unzip -o estate-agency.zip
+else
+    echo "ERROR: estate-agency.zip not found inside repository!" >&2
+    exit 1
+fi
 
-# 9. Build and run Docker container
+# 9. If unzipping created a nested directory, navigate into it (or stay if files extracted inline)
+if [ -d "estate-agency" ]; then
+    cd estate-agency
+elif [ -d "estate-agency-main" ]; then
+    cd estate-agency-main
+fi
+
+# 10. Build and run Docker container
 sudo docker build -t estate-agency .
+sudo docker rm -f estate-agency-app || true
 sudo docker run -d -p 80:80 --name estate-agency-app --restart always estate-agency
 
 # Return to root directory
 cd ~
 
-# 10. Install CloudWatch Agent
+# 11. Install CloudWatch Agent
 echo "Starting CloudWatch Agent installation..."
 wget https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb -O /tmp/amazon-cloudwatch-agent.deb
 sudo dpkg -i /tmp/amazon-cloudwatch-agent.deb
 rm -f /tmp/amazon-cloudwatch-agent.deb
 
-# 11. Configure CloudWatch Agent
+# 12. Configure CloudWatch Agent
 cat <<'EOF' | sudo tee /opt/aws/amazon-cloudwatch-agent/bin/config.json
 {
   "agent": {
@@ -114,7 +129,7 @@ cat <<'EOF' | sudo tee /opt/aws/amazon-cloudwatch-agent/bin/config.json
 }
 EOF
 
-# 12. Fetch configuration and start agent
+# 13. Fetch configuration and start agent
 sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
 
 echo "Instance setup complete."
