@@ -1,73 +1,54 @@
 #!/bin/bash
-set -e # Exit immediately if a command exits with a non-zero status
-
-export DEBIAN_FRONTEND=noninteractive
-
-# 1. Update package index and install prerequisites
-sudo apt-get update -y
-sudo apt-get install -y \
+# Update your package index
+sudo apt-get update
+#Install required packages
+sudo apt-get install \
     ca-certificates \
     curl \
     gnupg \
-    lsb-release \
-    git \
-    unzip \
-    wget
-
-# 2. Add Docker's official GPG key
+    lsb-release -y
+#Add Docker’s official GPG key
 sudo mkdir -p /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-
-# 3. Set up the Docker repository
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+    sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+#Set up the Docker repository
 echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-# 4. Install Docker Engine
-sudo apt-get update -y
-sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-# 5. Allow default ubuntu user to run Docker
-sudo usermod -aG docker ubuntu || true
-
-# 6. Fetch application source code via Git Clone
-rm -rf /tmp/app
-mkdir -p /tmp/app && cd /tmp/app
-git clone https://github.com/Ohioze2000/estate-agency.git .
-
-# 7. Navigate into cloned repository directory
+  "deb [arch=$(dpkg --print-architecture) \
+  signed-by=/etc/apt/keyrings/docker.gpg] \
+  https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+#Update the package index again
+sudo apt-get update
+#Install unzip
+sudo apt-get install unzip
+#Install Docker Engine
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+#Allow your user to run Docker without sudo
+sudo usermod -aG docker ubuntu
+#Pull webcontent from github repository
+wget https://github.com/Ohioze2000/estate-agency/raw/refs/heads/main/estate-agency.zip
+#Unzip the web content
+unzip estate-agency.zip
+#CD to estate-agency
 cd estate-agency
-
-# 8. Unzip the estate-agency.zip file located inside the repository
-if [ -f "estate-agency.zip" ]; then
-    unzip -o estate-agency.zip
-else
-    echo "ERROR: estate-agency.zip not found inside repository!" >&2
-    exit 1
-fi
-
-# 9. If unzipping created a nested directory, navigate into it (or stay if files extracted inline)
-if [ -d "estate-agency" ]; then
-    cd estate-agency
-elif [ -d "estate-agency-main" ]; then
-    cd estate-agency-main
-fi
-
-# 10. Build and run Docker container
+#Build docker image
 sudo docker build -t estate-agency .
-sudo docker rm -f estate-agency-app || true
-sudo docker run -d -p 80:80 --name estate-agency-app --restart always estate-agency
-
-# Return to root directory
-cd ~
-
-# 11. Install CloudWatch Agent
+#Run docker container
+sudo docker run -d -p 80:80 estate-agency
+#CloudWatch Agent Installation
 echo "Starting CloudWatch Agent installation..."
+#Download the CloudWatch Agent package
 wget https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb -O /tmp/amazon-cloudwatch-agent.deb
+#Install the CloudWatch Agent
 sudo dpkg -i /tmp/amazon-cloudwatch-agent.deb
-rm -f /tmp/amazon-cloudwatch-agent.deb
+#Clean up the downloaded package
+rm /tmp/amazon-cloudwatch-agent.deb
 
-# 12. Configure CloudWatch Agent
+echo "CloudWatch Agent installed."
+
+#CloudWatch Agent Configuration
+
 cat <<'EOF' | sudo tee /opt/aws/amazon-cloudwatch-agent/bin/config.json
 {
   "agent": {
@@ -120,7 +101,26 @@ cat <<'EOF' | sudo tee /opt/aws/amazon-cloudwatch-agent/bin/config.json
             "log_group_name": "/ec2/cloud-init-output",
             "log_stream_name": "{instance_id}",
             "retention_in_days": 7
+          },
+          {
+            "file_path": "/var/log/nginx/access.log",
+            "log_group_name": "/ec2/nginx/access",
+            "log_stream_name": "{instance_id}",
+            "retention_in_days": 7
+          },
+          {
+            "file_path": "/var/log/nginx/error.log",
+            "log_group_name": "/ec2/nginx/error",
+            "log_stream_name": "{instance_id}",
+            "retention_in_days": 7
           }
+          # Add more log files here, e.g., for your specific application
+          # {
+          #   "file_path": "/path/to/your/app.log",
+          #   "log_group_name": "/ec2/your-app-name",
+          #   "log_stream_name": "{instance_id}",
+          #   "retention_in_days": 7
+          # }
         ]
       }
     },
@@ -129,7 +129,12 @@ cat <<'EOF' | sudo tee /opt/aws/amazon-cloudwatch-agent/bin/config.json
 }
 EOF
 
-# 13. Fetch configuration and start agent
+echo "CloudWatch Agent configuration created."
+
 sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
 
+echo "CloudWatch Agent started."
+
 echo "Instance setup complete."
+
+#
