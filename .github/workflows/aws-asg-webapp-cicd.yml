@@ -1,4 +1,3 @@
-#
 name: "Terraform AWS Deploy"
 
 on:
@@ -28,15 +27,14 @@ jobs:
         with:
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
 
-         # --- SUCCESS NOTIFICATION ---
-      - name: Slack Notification - Success
-        if: success()
+      # --- PIPELINE STARTED NOTIFICATION ---
+      - name: Slack Notification - Started
         uses: rtCamp/action-slack-notify@v2
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SLACK_COLOR: 'good'
-          SLACK_MESSAGE: "✅ Infrastructure Provisioning and Application Deployment Started SUCCESSFULLY!"
-          SLACK_TITLE: "Infrastructure Provisioning and Application Deployment Status: STARTED"
+          SLACK_COLOR: '#36a64f'
+          SLACK_TITLE: "🚀 Pipeline Triggered"
+          SLACK_MESSAGE: "Infrastructure pipeline started for commit '${{ github.event.head_commit.message }}' on branch '${{ github.ref_name }}'."
 
       - name: Terraform Init
         run: terraform init
@@ -48,23 +46,22 @@ jobs:
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: terraform apply "main.tfplan"
 
-        # --- 4. CAPTURE OUTPUTS ---
+      # --- CAPTURE OUTPUTS (ONLY ON MAIN PUSH) ---
       - name: Capture Website URL
-        if: success()
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && success()
         id: vars
         run: |
           echo "URL=$(terraform output -raw website_url)" >> $GITHUB_OUTPUT
 
-         # --- SUCCESS NOTIFICATION ---
+      # --- SUCCESS NOTIFICATION (ONLY ON MAIN PUSH) ---
       - name: Slack Notification - Success
-        if: success()
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && success()
         uses: rtCamp/action-slack-notify@v2
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_COLOR: 'good'
-
           SLACK_TITLE: "✅ Deployment SUCCESSFUL"
-          SLACK_MESSAGE: "Your changes are live at: ${{ steps.vars.outputs.URL }}"
+          SLACK_MESSAGE: "Infrastructure provisioned and application deployed successfully! Live URL: ${{ steps.vars.outputs.URL }}"
 
       # --- FAILURE NOTIFICATION ---
       - name: Slack Notification - Failure
@@ -73,5 +70,5 @@ jobs:
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_COLOR: 'danger'
-          SLACK_MESSAGE: "❌ Infrastructure Provisioning and Application Deployment FAILED. Check GitHub Actions logs."
-          SLACK_TITLE: "Infrastructure Provisioning and Application Deployment Status: FAILED"
+          SLACK_TITLE: "❌ Deployment FAILED"
+          SLACK_MESSAGE: "Infrastructure Provisioning or Application Deployment FAILED on branch '${{ github.ref_name }}'. Check GitHub Actions logs."
